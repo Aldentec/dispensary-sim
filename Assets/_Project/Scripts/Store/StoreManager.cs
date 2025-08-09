@@ -1,202 +1,287 @@
-using UnityEngine;
+﻿using UnityEngine;
+using Unity.Netcode;
 using System.Collections.Generic;
 using DispensarySimulator.Products;
-using DispensarySimulator.Economy;
-using DispensarySimulator.Player;
 
 namespace DispensarySimulator.Store {
-    public class StoreManager : MonoBehaviour {
+
+    // Move struct outside of class to avoid generic constraint issues
+    [System.Serializable]
+    public struct ProductInventoryItem : INetworkSerializable, System.IEquatable<ProductInventoryItem> {
+        public int productIndex; // Index in availableProducts array
+        public int quantity;
+        public bool isDisplayed;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter {
+            serializer.SerializeValue(ref productIndex);
+            serializer.SerializeValue(ref quantity);
+            serializer.SerializeValue(ref isDisplayed);
+        }
+
+        // IEquatable implementation required for NetworkList
+        public bool Equals(ProductInventoryItem other) {
+            return productIndex == other.productIndex &&
+                   quantity == other.quantity &&
+                   isDisplayed == other.isDisplayed;
+        }
+
+        public override bool Equals(object obj) {
+            return obj is ProductInventoryItem other && Equals(other);
+        }
+
+        public override int GetHashCode() {
+            // Unity-compatible hash code generation
+            unchecked {
+                int hash = 17;
+                hash = hash * 23 + productIndex.GetHashCode();
+                hash = hash * 23 + quantity.GetHashCode();
+                hash = hash * 23 + isDisplayed.GetHashCode();
+                return hash;
+            }
+        }
+
+        public static bool operator ==(ProductInventoryItem left, ProductInventoryItem right) {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(ProductInventoryItem left, ProductInventoryItem right) {
+            return !left.Equals(right);
+        }
+    }
+
+    public class StoreManager : NetworkBehaviour {
+        [Header("Product Management")]
+        public ProductData[] availableProducts; // All products that can be ordered/sold
+
+        [Header("Store Layout")]
+        public Transform[] shelfPositions;
+        public ProductSpawnPoint deliveryPoint;
+        public ShelfSlot[] shelfSlots;
+
         [Header("Store Settings")]
-        public string storeName = "Green Leaf Dispensary";
-        public bool isOpen = true;
-        public float storeHours = 12f; // hours per day
+        public int maxProductsPerShelf = 10;
+        public float restockAlertThreshold = 0.2f; // Alert when 20% or less stock remains
+        public bool isOpen = true; // Store operation status
 
-        [Header("Store References")]
-        public Transform[] displayShelves;
-        public Transform[] productSpawnPoints;
-        public CashRegister cashRegister;
-
-        [Header("Inventory")]
-        public List<Product> availableProducts = new List<Product>();
-        public int maxInventorySize = 100;
-
-        // Store state
-        private List<Product> currentInventory = new List<Product>();
-        private float currentStoreTime = 0f;
-        private bool storeInitialized = false;
-
-        // References
-        private MoneyManager moneyManager;
+        // Network state
+        private NetworkList<ProductInventoryItem> storeInventory;
 
         // Events
-        public System.Action OnStoreOpened;
-        public System.Action OnStoreClosed;
-        public System.Action<Product> OnProductSold;
+        public System.Action<ProductData, int> OnProductStocked;
+        public System.Action<ProductData> OnProductOutOfStock;
+        public System.Action<ProductData, int> OnProductSold;
 
-        void Start() {
-            InitializeStore();
+        void Awake() {
+            // Initialize network list
+            storeInventory = new NetworkList<ProductInventoryItem>();
         }
 
-        void Update() {
-            UpdateStoreTime();
-        }
-
-        private void InitializeStore() {
-            // Get money manager reference
-            moneyManager = FindObjectOfType<MoneyManager>();
-            if (moneyManager == null) {
-                Debug.LogError("StoreManager: No MoneyManager found!");
+        public override void OnNetworkSpawn() {
+            // Find components if not assigned
+            if (deliveryPoint == null) {
+                deliveryPoint = FindObjectOfType<ProductSpawnPoint>();
             }
 
-            // Initialize starting inventory
-            SetupStartingInventory();
-
-            // Set up cash register
-            if (cashRegister != null) {
-                cashRegister.Initialize(this);
+            if (shelfSlots == null || shelfSlots.Length == 0) {
+                shelfSlots = FindObjectsOfType<ShelfSlot>();
             }
 
-            storeInitialized = true;
-            Debug.Log($"{storeName} initialized and ready for business!");
+            // Subscribe to inventory changes
+            storeInventory.OnListChanged += OnInventoryChanged;
+
+            Debug.Log($"🏪 StoreManager initialized with {availableProducts.Length} available products");
         }
 
-        private void SetupStartingInventory() {
-            // Add some starting products
-            foreach (Product productPrefab in availableProducts) {
-                if (productPrefab != null && productPrefab.productData != null) {
-                    AddProductToInventory(productPrefab.productData, 10);
+        private void OnInventoryChanged(NetworkListEvent<ProductInventoryItem> changeEvent) {
+            // React to inventory changes across the network
+            switch (changeEvent.Type) {
+                case NetworkListEvent<ProductInventoryItem>.EventType.Add:
+                    Debug.Log($"🏪 Product added to store inventory");
+                    break;
+                case NetworkListEvent<ProductInventoryItem>.EventType.RemoveAt:
+                    Debug.Log($"🏪 Product removed from store inventory");
+                    break;
+                case NetworkListEvent<ProductInventoryItem>.EventType.Value:
+                    Debug.Log($"🏪 Store inventory updated");
+                    break;
+            }
+        }
+
+        // Add products to store inventory (called when products are physically placed on shelves)
+        [ServerRpc(RequireOwnership = false)]
+        public void AddProductToInventoryServerRpc(int productIndex, int quantity) {
+            if (!IsServer) return;
+
+            if (productIndex < 0 || productIndex >= availableProducts.Length) {
+                Debug.LogError($"Invalid product index: {productIndex}");
+                return;
+            }
+
+            // Find existing inventory item or create new one
+            for (int i = 0; i < storeInventory.Count; i++) {
+                var item = storeInventory[i];
+                if (item.productIndex == productIndex) {
+                    item.quantity += quantity;
+                    storeInventory[i] = item;
+
+                    OnProductStocked?.Invoke(availableProducts[productIndex], quantity);
+                    Debug.Log($"🏪 Added {quantity}x {availableProducts[productIndex].productName} to inventory");
+                    return;
                 }
             }
+
+            // Create new inventory item
+            var newItem = new ProductInventoryItem {
+                productIndex = productIndex,
+                quantity = quantity,
+                isDisplayed = false
+            };
+
+            storeInventory.Add(newItem);
+            OnProductStocked?.Invoke(availableProducts[productIndex], quantity);
+            Debug.Log($"🏪 Added new product {availableProducts[productIndex].productName} x{quantity} to inventory");
         }
 
-        private void UpdateStoreTime() {
-            if (!isOpen) return;
-
-            currentStoreTime += Time.deltaTime;
-
-            // Handle store closing (simplified)
-            if (currentStoreTime >= storeHours * 60f) // Convert hours to seconds (simplified)
-            {
-                CloseStore();
-            }
-        }
-
-        public void OpenStore() {
-            isOpen = true;
-            currentStoreTime = 0f;
-            OnStoreOpened?.Invoke();
-            Debug.Log($"{storeName} is now open!");
-        }
-
-        public void CloseStore() {
-            isOpen = false;
-            OnStoreClosed?.Invoke();
-            Debug.Log($"{storeName} is now closed!");
-        }
-
-        public bool AddProductToInventory(ProductData productData, int amount) {
-            if (currentInventory.Count >= maxInventorySize) {
-                Debug.Log("Inventory is full!");
-                return false;
-            }
-
-            // Check if product already exists in inventory
-            Product existingProduct = currentInventory.Find(p => p.productData == productData);
-
-            if (existingProduct != null) {
-                existingProduct.AddToStock(amount);
+        // Legacy method for compatibility (converts ProductData to index)
+        public void AddProductToInventory(ProductData productData, int quantity) {
+            int index = System.Array.IndexOf(availableProducts, productData);
+            if (index >= 0) {
+                AddProductToInventoryServerRpc(index, quantity);
             }
             else {
-                // Create new product instance
-                GameObject newProductObj = Instantiate(productData.prefab);
-                Product newProduct = newProductObj.GetComponent<Product>();
+                Debug.LogError($"Product {productData.productName} not found in available products!");
+            }
+        }
 
-                if (newProduct != null) {
-                    newProduct.productData = productData;
-                    newProduct.AddToStock(amount);
-                    currentInventory.Add(newProduct);
+        // Remove products from inventory (when sold)
+        [ServerRpc(RequireOwnership = false)]
+        public void RemoveProductFromInventoryServerRpc(int productIndex, int quantity) {
+            if (!IsServer) return;
 
-                    // Place in storage area or on shelf
-                    PlaceProductInStore(newProduct);
+            for (int i = 0; i < storeInventory.Count; i++) {
+                var item = storeInventory[i];
+                if (item.productIndex == productIndex) {
+                    item.quantity = Mathf.Max(0, item.quantity - quantity);
+
+                    if (item.quantity <= 0) {
+                        storeInventory.RemoveAt(i);
+                        OnProductOutOfStock?.Invoke(availableProducts[productIndex]);
+                    }
+                    else {
+                        storeInventory[i] = item;
+                    }
+
+                    OnProductSold?.Invoke(availableProducts[productIndex], quantity);
+                    Debug.Log($"🏪 Sold {quantity}x {availableProducts[productIndex].productName}");
+                    return;
                 }
             }
 
-            Debug.Log($"Added {amount} {productData.productName} to inventory");
-            return true;
+            Debug.LogWarning($"Tried to remove {availableProducts[productIndex].productName} but not in inventory");
         }
 
-        // Separate method for paid restocking (keeps the old functionality)
-        public bool RestockProductPaid(ProductData productData, int amount) {
-            // Calculate restock cost
-            float restockCost = productData.basePrice * amount;
+        // Get current stock of a product
+        public int GetProductStock(ProductData productData) {
+            int index = System.Array.IndexOf(availableProducts, productData);
+            if (index < 0) return 0;
 
-            if (moneyManager != null && !moneyManager.CanAfford(restockCost)) {
-                Debug.Log($"Cannot afford to restock {productData.productName}. Cost: ${restockCost:F2}");
-                return false;
-            }
-
-            // Spend money for restocking
-            if (moneyManager != null) {
-                moneyManager.SpendMoney(restockCost);
-            }
-
-            // Add to inventory
-            return AddProductToInventory(productData, amount);
-        }
-
-        private void PlaceProductInStore(Product product) {
-            // Simple placement logic - put on first available shelf
-            if (displayShelves.Length > 0) {
-                Transform shelf = displayShelves[Random.Range(0, displayShelves.Length)];
-                product.PlaceOnDisplay(shelf);
-            }
-        }
-
-        public bool SellProduct(ProductData productData, int amount = 1) {
-            Product product = currentInventory.Find(p => p.productData == productData);
-
-            if (product == null || !product.IsInStock()) {
-                Debug.Log($"Cannot sell {productData.productName} - not in stock!");
-                return false;
-            }
-
-            if (product.stockAmount < amount) {
-                Debug.Log($"Cannot sell {amount} {productData.productName} - only {product.stockAmount} in stock!");
-                return false;
-            }
-
-            if (product.RemoveFromStock(amount)) {
-                float saleAmount = productData.sellPrice * amount;
-
-                // Add money to economy system
-                if (moneyManager != null) {
-                    moneyManager.AddSaleEarnings(saleAmount);
+            foreach (var item in storeInventory) {
+                if (item.productIndex == index) {
+                    return item.quantity;
                 }
+            }
+            return 0;
+        }
 
-                OnProductSold?.Invoke(product);
-                Debug.Log($"Sold {amount} {productData.productName} for ${saleAmount:F2}");
+        // Check if product is in stock
+        public bool IsInStock(ProductData productData) {
+            return GetProductStock(productData) > 0;
+        }
+
+        // Get all products that need restocking
+        public List<ProductData> GetProductsNeedingRestock() {
+            var restockList = new List<ProductData>();
+
+            foreach (var product in availableProducts) {
+                int currentStock = GetProductStock(product);
+                int threshold = Mathf.RoundToInt(product.maxStock * restockAlertThreshold);
+
+                if (currentStock <= threshold) {
+                    restockList.Add(product);
+                }
+            }
+
+            return restockList;
+        }
+
+        // Get formatted inventory display
+        public string GetInventoryDisplayText() {
+            var text = "Store Inventory:\n";
+
+            foreach (var item in storeInventory) {
+                if (item.productIndex < availableProducts.Length) {
+                    var product = availableProducts[item.productIndex];
+                    text += $"• {product.productName}: {item.quantity}\n";
+                }
+            }
+
+            return text;
+        }
+
+        // Find available shelf slots
+        public ShelfSlot FindAvailableShelfSlot(ProductData productData) {
+            foreach (var slot in shelfSlots) {
+                if (slot.CanAcceptProduct(productData)) {
+                    return slot;
+                }
+            }
+            return null;
+        }
+
+        // Legacy compatibility methods for existing CashRegister scripts
+        public bool SellProduct(ProductData productData, int quantity = 1) {
+            if (!IsInStock(productData)) {
+                return false;
+            }
+
+            int index = System.Array.IndexOf(availableProducts, productData);
+            if (index >= 0) {
+                RemoveProductFromInventoryServerRpc(index, quantity);
                 return true;
             }
-
             return false;
-        }
-
-        public List<Product> GetAvailableProducts() {
-            return currentInventory.FindAll(p => p.IsInStock());
         }
 
         public int GetTotalInventoryCount() {
             int total = 0;
-            foreach (Product product in currentInventory) {
-                total += product.stockAmount;
+            foreach (var item in storeInventory) {
+                total += item.quantity;
             }
             return total;
         }
 
-        // Check if specific product has enough stock
-        public bool HasInStock(ProductData productData, int requiredAmount) {
-            Product product = currentInventory.Find(p => p.productData == productData);
-            return product != null && product.stockAmount >= requiredAmount;
+        public ProductData[] GetAvailableProducts() {
+            return availableProducts;
+        }
+
+        public bool HasInStock(ProductData productData) {
+            return IsInStock(productData);
+        }
+
+        // Cleanup
+        public override void OnNetworkDespawn() {
+            if (storeInventory != null) {
+                storeInventory.OnListChanged -= OnInventoryChanged;
+            }
+        }
+
+        // Debug method to manually add products for testing
+        [ContextMenu("Add Test Products")]
+        public void AddTestProducts() {
+            if (availableProducts.Length > 0) {
+                AddProductToInventory(availableProducts[0], 5);
+                Debug.Log("Added test products to inventory");
+            }
         }
     }
 }

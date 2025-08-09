@@ -1,10 +1,12 @@
-using UnityEngine;
+﻿using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using DispensarySimulator.Products;
 using DispensarySimulator.Economy;
 using DispensarySimulator.Core;
+using DispensarySimulator.Player;
 using System.Collections.Generic;
+using Unity.Netcode;
 
 namespace DispensarySimulator.Store {
     public class InventoryManager : MonoBehaviour {
@@ -24,6 +26,9 @@ namespace DispensarySimulator.Store {
         [Header("Available Products to Order")]
         public ProductData[] availableProducts; // Products you can order from suppliers
 
+        [Header("Spawn Settings")]
+        public ProductSpawnPoint spawnPoint; // Where ordered products appear
+
         [Header("Audio")]
         public AudioSource audioSource;
         public AudioClip orderSound;
@@ -32,6 +37,7 @@ namespace DispensarySimulator.Store {
         // Order state
         private StoreManager storeManager;
         private MoneyManager moneyManager;
+        private FirstPersonController playerController;
         private bool isInventoryOpen = false;
         private List<OrderItem> shoppingCart = new List<OrderItem>();
         private List<GameObject> productButtons = new List<GameObject>();
@@ -54,24 +60,25 @@ namespace DispensarySimulator.Store {
         }
 
         void Update() {
-            HandleInput();
-        }
-
-        private void HandleInput() {
-            // Check if game is paused
-            if (GameManager.Instance != null && GameManager.Instance.isPaused) return;
-
-            // Toggle inventory with Tab key
-            if (Input.GetKeyDown(inventoryKey)) {
-                ToggleInventory();
-            }
+            // Remove input handling - let FirstPersonController handle Tab key
+            // The FirstPersonController will call our ToggleInventory() method
         }
 
         public void Initialize() {
             // Find required components
             storeManager = FindObjectOfType<StoreManager>();
             moneyManager = FindObjectOfType<MoneyManager>();
+            playerController = FindObjectOfType<FirstPersonController>();
             audioSource = GetComponent<AudioSource>();
+
+            // Find spawn point if not assigned
+            if (spawnPoint == null) {
+                spawnPoint = FindObjectOfType<ProductSpawnPoint>();
+            }
+
+            if (spawnPoint == null) {
+                Debug.LogWarning("No ProductSpawnPoint found! Orders will not spawn physically.");
+            }
 
             if (audioSource == null) {
                 audioSource = gameObject.AddComponent<AudioSource>();
@@ -91,7 +98,7 @@ namespace DispensarySimulator.Store {
                 inventoryUI.SetActive(false);
             }
 
-            Debug.Log("Inventory Manager initialized - Press Tab to open inventory");
+            Debug.Log("📦 Inventory Manager initialized - Press Tab to open supplier catalog");
         }
 
         public void ToggleInventory() {
@@ -114,8 +121,7 @@ namespace DispensarySimulator.Store {
                 inventoryUI.SetActive(true);
             }
 
-            // Unlock cursor for UI interaction
-            Cursor.lockState = CursorLockMode.None;
+            // Don't manage cursor here - FirstPersonController handles it
 
             // Populate product list
             SetupProductList();
@@ -123,7 +129,7 @@ namespace DispensarySimulator.Store {
             // Update UI
             UpdateOrderUI();
 
-            Debug.Log("Inventory opened");
+            Debug.Log("📦 Supplier catalog opened");
         }
 
         public void CloseInventory() {
@@ -140,10 +146,13 @@ namespace DispensarySimulator.Store {
             // Clear product buttons
             ClearProductButtons();
 
-            // Re-lock cursor
-            Cursor.lockState = CursorLockMode.Locked;
+            // Tell FirstPersonController we're out of inventory mode
+            // This handles both Tab key and Cancel button scenarios
+            if (playerController != null) {
+                playerController.SetInventoryMode(false);
+            }
 
-            Debug.Log("Inventory closed");
+            Debug.Log("📦 Supplier catalog closed");
         }
 
         private void SetupProductList() {
@@ -256,29 +265,42 @@ namespace DispensarySimulator.Store {
             // Spend the money
             moneyManager.SpendMoney(totalAmount);
 
-            // Add products to store inventory
-            bool orderSuccessful = true;
+            // NEW: Spawn products at spawn point instead of auto-placing
+            SpawnOrderedProducts();
+
+            // Play success sound
+            PlaySound(orderSound);
+
+            SetStatusText($"Order placed! Total cost: ${totalAmount:F2}");
+            SetStatusText($"Products delivered to receiving area. Go collect them!");
+
+            // Close inventory after delay
+            Invoke(nameof(CloseInventory), 3f);
+
+            Debug.Log($"📦 Order successful! Products spawning at delivery point.");
+        }
+
+        private void SpawnOrderedProducts() {
+            if (spawnPoint == null) {
+                Debug.LogError("No ProductSpawnPoint assigned! Cannot spawn ordered products.");
+                SetStatusText("Error: No delivery point configured!");
+                return;
+            }
+
+            // Spawn each ordered product at the spawn point
             foreach (OrderItem item in shoppingCart) {
-                if (storeManager != null) {
-                    // Add inventory without additional cost (we already paid)
-                    storeManager.AddProductToInventory(item.product, item.quantity);
+                // Find the product index in available products array
+                int productIndex = System.Array.IndexOf(availableProducts, item.product);
+
+                if (productIndex >= 0) {
+                    // Request server to spawn the products
+                    spawnPoint.SpawnProductsServerRpc(productIndex, item.quantity);
+
+                    Debug.Log($"📦 Spawning {item.quantity}x {item.product.productName} at delivery point");
                 }
-            }
-
-            if (orderSuccessful) {
-                // Play success sound
-                PlaySound(orderSound);
-
-                SetStatusText($"Order placed! Total cost: ${totalAmount:F2}");
-
-                // Close inventory after delay
-                Invoke(nameof(CloseInventory), 2f);
-
-                Debug.Log($"Inventory order successful! Total cost: ${totalAmount:F2}");
-            }
-            else {
-                SetStatusText("Order failed! Please try again.");
-                PlaySound(errorSound);
+                else {
+                    Debug.LogError($"Product {item.product.productName} not found in available products!");
+                }
             }
         }
 

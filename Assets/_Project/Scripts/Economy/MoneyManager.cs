@@ -27,13 +27,29 @@ namespace DispensarySimulator.Economy {
         public float DailyProgress => currentDailyEarnings.Value / dailyTarget.Value;
 
         void Start() {
-            // Initialize for single-player mode if not networked
-            if (!NetworkManager.Singleton.IsListening) {
-                InitializeSinglePlayer();
+            // Wait for network initialization, don't initialize in single-player mode here
+            if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening) {
+                Debug.Log("💰 MoneyManager: Network not active, waiting for network spawn or manual init");
+                // Don't initialize here - let OnNetworkSpawn handle it or call manual init
+            }
+        }
+
+        public void InitializeForSinglePlayer() {
+            if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening) {
+                currentMoney.Value = startingMoney;
+                currentDailyEarnings.Value = 0f;
+                dailyTarget.Value = startingDailyTarget;
+
+                OnMoneyChanged?.Invoke(currentMoney.Value);
+                OnDailyEarningsChanged?.Invoke(currentDailyEarnings.Value);
+
+                Debug.Log($"💰 Manual single-player init: ${currentMoney.Value:F2}");
             }
         }
 
         public override void OnNetworkSpawn() {
+            Debug.Log($"💰 MoneyManager NetworkSpawn - IsServer: {IsServer}, IsClient: {IsClient}");
+
             // Subscribe to network variable changes for all clients
             currentMoney.OnValueChanged += OnMoneyValueChanged;
             currentDailyEarnings.OnValueChanged += OnDailyEarningsValueChanged;
@@ -52,14 +68,20 @@ namespace DispensarySimulator.Economy {
         }
 
         private void InitializeSinglePlayer() {
-            // For single-player mode, set values directly
+            // For single-player mode, set values directly (don't recreate NetworkVariables!)
             Debug.Log("💰 Initializing single-player money manager");
-            currentMoney = new NetworkVariable<float>(startingMoney);
-            currentDailyEarnings = new NetworkVariable<float>(0f);
-            dailyTarget = new NetworkVariable<float>(startingDailyTarget);
 
-            OnMoneyChanged?.Invoke(currentMoney.Value);
-            OnDailyEarningsChanged?.Invoke(currentDailyEarnings.Value);
+            // Set values, don't recreate the NetworkVariables
+            if (!NetworkManager.Singleton || !NetworkManager.Singleton.IsListening) {
+                // Directly set values for single-player
+                currentMoney.Value = startingMoney;
+                currentDailyEarnings.Value = 0f;
+                dailyTarget.Value = startingDailyTarget;
+
+                // Fire events manually for single-player
+                OnMoneyChanged?.Invoke(currentMoney.Value);
+                OnDailyEarningsChanged?.Invoke(currentDailyEarnings.Value);
+            }
         }
 
         private void InitializeNetworkValues() {

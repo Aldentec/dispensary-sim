@@ -10,6 +10,7 @@ namespace DispensarySimulator.Player {
         public float interactionRange = 3f;
         public LayerMask interactionLayers = 1;
         public KeyCode interactionKey = KeyCode.E;
+        public KeyCode dropKey = KeyCode.Q;
 
         [Header("UI")]
         public GameObject interactionPrompt;
@@ -22,6 +23,7 @@ namespace DispensarySimulator.Player {
         // Components
         private Camera playerCamera;
         private FirstPersonController playerController;
+        private PlayerInventory playerInventory;
 
         // Current interaction target
         private IInteractable currentTarget;
@@ -37,6 +39,7 @@ namespace DispensarySimulator.Player {
         void Update() {
             if (GameManager.Instance != null && GameManager.Instance.isPaused) return;
 
+            HandleInventoryInput();
             HandleInteractionDetection();
             HandleInteractionInput();
         }
@@ -44,14 +47,29 @@ namespace DispensarySimulator.Player {
         private void InitializeComponents() {
             playerCamera = GetComponentInChildren<Camera>();
             playerController = GetComponent<FirstPersonController>();
+            playerInventory = GetComponent<PlayerInventory>();
 
             if (playerCamera == null) {
                 Debug.LogError("PlayerInteraction: No camera found!");
             }
 
+            if (playerInventory == null) {
+                Debug.LogError("PlayerInteraction: No PlayerInventory found! Adding one...");
+                playerInventory = gameObject.AddComponent<PlayerInventory>();
+            }
+
             // Hide interaction prompt initially
             if (interactionPrompt != null) {
                 interactionPrompt.SetActive(false);
+            }
+        }
+
+        private void HandleInventoryInput() {
+            // Handle drop input
+            if (Input.GetKeyDown(dropKey) && playerInventory != null) {
+                if (playerInventory.IsHoldingItem()) {
+                    playerInventory.DropItem();
+                }
             }
         }
 
@@ -91,8 +109,8 @@ namespace DispensarySimulator.Player {
             currentTarget = target;
             currentTargetObject = targetObject;
 
-            // Show interaction prompt
-            ShowInteractionPrompt(target.GetInteractionText());
+            // Show interaction prompt with context-aware text
+            ShowInteractionPrompt(GetContextualInteractionText(target));
 
             // Highlight object if it has the component
             HighlightObject(targetObject, true);
@@ -127,13 +145,48 @@ namespace DispensarySimulator.Player {
             Debug.Log($"Interacted with: {currentTargetObject.name}");
         }
 
+        private string GetContextualInteractionText(IInteractable target) {
+            // Get base interaction text
+            string baseText = target.GetInteractionText();
+
+            // Add contextual information based on what player is holding
+            if (playerInventory != null && playerInventory.IsHoldingItem()) {
+                // Player is holding something
+                if (target is ShelfSlot) {
+                    var heldItem = playerInventory.GetHeldItem();
+                    return $"Place {heldItem.name} on shelf";
+                }
+                else if (target is SpawnedProduct) {
+                    return "Drop current item first";
+                }
+            }
+            else {
+                // Player is not holding anything
+                if (target is SpawnedProduct) {
+                    return baseText; // "Pick up [ItemName]"
+                }
+                else if (target is ShelfSlot) {
+                    return "Need item to place on shelf";
+                }
+            }
+
+            return baseText;
+        }
+
         private void ShowInteractionPrompt(string text) {
             if (interactionPrompt == null) return;
 
             interactionPrompt.SetActive(true);
 
             if (promptText != null) {
-                promptText.text = $"[{interactionKey}] {text}";
+                // Show interaction key and add inventory hint
+                string fullText = $"[{interactionKey}] {text}";
+
+                if (playerInventory != null && playerInventory.IsHoldingItem()) {
+                    fullText += $"\n[{dropKey}] Drop item";
+                }
+
+                promptText.text = fullText;
             }
         }
 
@@ -170,11 +223,22 @@ namespace DispensarySimulator.Player {
             return currentTargetObject;
         }
 
+        public PlayerInventory GetPlayerInventory() {
+            return playerInventory;
+        }
+
         // Debug visualization
         void OnDrawGizmosSelected() {
             if (playerCamera != null) {
                 Gizmos.color = currentTarget != null ? Color.green : Color.red;
                 Gizmos.DrawRay(playerCamera.transform.position, playerCamera.transform.forward * interactionRange);
+            }
+        }
+
+        // GUI debug info
+        void OnGUI() {
+            if (currentTarget != null) {
+                GUI.Label(new Rect(10, 80, 300, 20), $"Looking at: {currentTargetObject.name}");
             }
         }
     }
