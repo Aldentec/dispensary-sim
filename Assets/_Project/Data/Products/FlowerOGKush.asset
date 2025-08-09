@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6b03b6a31971e048b25fd9e0f8bdf35, type: 3}
+  m_Name: FlowerOGKush
+  m_EditorClassIdentifier: 
+  productName: OG Kush
+  description: This is OG Kush
+  category: 0
+  icon: {fileID: 0}
+  prefab: {fileID: 5211391556548597753, guid: 4a4dd8aed069dc8498d29a4028c2b65c, type: 3}
+  basePrice: 15
+  sellPrice: 25
+  potency: 0.6
+  quality: 0.6
+  weight: 1
+  minStock: 5
+  maxStock: 50
+  popularityScore: 0.5
+  canDisplayOnShelf: 1
+  requiresShowcase: 0
+  needsRefrigeration: 0

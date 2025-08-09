@@ -1,0 +1,321 @@
+fileFormatVersion: 2
+guid: d75b98291ac50bc40ae46f90f1deb1e5
+ModelImporter:
+  serializedVersion: 23
+  fileIDToRecycleName:
+    100000: //RootNode
+    100002: SM_Backwall
+    100004: SM_Ceiling
+    100006: SM_Chandellier
+    100008: SM_Door
+    100010: SM_Floor
+    100012: SM_Frame
+    100014: SM_painting_1
+    100016: SM_painting_2
+    100018: SM_Shadowbox
+    100020: SM_Walls
+    100022: SM_Column
+    100024: SM_Borders
+    100026: SM_Frame.001
+    400000: //RootNode
+    400002: SM_Backwall
+    400004: SM_Ceiling
+    400006: SM_Chandellier
+    400008: SM_Door
+    400010: SM_Floor
+    400012: SM_Frame
+    400014: SM_painting_1
+    400016: SM_painting_2
+    400018: SM_Shadowbox
+    400020: SM_Walls
+    400022: SM_Column
+    400024: SM_Borders
+    400026: SM_Frame.001
+    2100000: Mat
+    2100002: M_J_Floor
+    2100004: M_J_Ceiling
+    2100006: M_J_Light
+    2100008: M_J_Glass
+    2100010: M_J_Wall_2
+    2100012: M_J_Wall_1
+    2100014: M_J_Wall_Frame
+    2100016: M_J_Mirror
+    2100018: M_J_Door
+    2100020: M_J_Backwall
+    2100022: M_painting
+    2100024: M_J_Lamps
+    2300000: SM_Backwall
+    2300002: SM_Ceiling
+    2300004: SM_Chandellier
+    2300006: SM_Door
+    2300008: SM_Floor
+    2300010: SM_Frame
+    2300012: SM_painting_1
+    2300014: SM_painting_2
+    2300016: SM_Shadowbox
+    2300018: SM_Walls
+    2300020: SM_Column
+    2300022: SM_Borders
+    2300024: SM_Frame.001
+    3300000: SM_Backwall
+    3300002: SM_Ceiling
+    3300004: SM_Chandellier
+    3300006: SM_Door
+    3300008: SM_Floor
+    3300010: SM_Frame
+    3300012: SM_painting_1
+    3300014: SM_painting_2
+    3300016: SM_Shadowbox
+    3300018: SM_Walls
+    3300020: SM_Column
+    3300022: SM_Borders
+    3300024: SM_Frame.001
+    4300000: SM_Shadowbox
+    4300002: SM_Floor
+    4300004: SM_Ceiling
+    4300006: SM_Walls
+    4300008: SM_Door
+    4300010: SM_Frame
+    4300012: SM_Backwall
+    4300014: SM_painting_1
+    4300016: SM_painting_2
+    4300018: SM_Chandellier
+    4300020: SM_Column
+    4300022: SM_Borders
+    4300024: SM_Frame.001
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_Blackwall
+    second: {fileID: 2100000, guid: 76563f1df2b2014409e8a0538d3a0107, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_Gold
+    second: {fileID: 2100000, guid: a37fdd9bd342d0a498a9cedb873eccb6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Backwall
+    second: {fileID: 2100000, guid: 142ca0048e6f8e54f8ac3c5208cc56f3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Backwall.001
+    second: {fileID: 2100000, guid: 3e83097f2592e09418c235c1edcf0627, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Ceiling
+    second: {fileID: 2100000, guid: 70adc34265f0d9d4f8ac79986daebb52, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Ceiling.001
+    second: {fileID: 2100000, guid: e0cb18eeeb5b65d47afabdabc82a5fef, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Door
+    second: {fileID: 2100000, guid: 9db9219ba3d20cd44b801a279c1ef405, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Door.001
+    second: {fileID: 2100000, guid: ae0aadd1f40b03f4cb982272a0b7c09a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Floor
+    second: {fileID: 2100000, guid: 80b026a994e42db42b65fde3a896973f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Floor.001
+    second: {fileID: 2100000, guid: 621df950e42c4724d816c07ca123c883, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Glass
+    second: {fileID: 2100000, guid: d564bcdbe0a6a6b4094b5aa9bc3bf516, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Glass.002
+    second: {fileID: 2100000, guid: 18a64908c8c79cd4ca35d030182f8517, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Glass.003
+    second: {fileID: 2100000, guid: 6adef8e0e4db06d41b25fc02340ba34a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Lamps
+    second: {fileID: 2100000, guid: 9a8c1a319f9d392449f706d575ffef56, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Lamps.001
+    second: {fileID: 2100000, guid: eedc90ff0982e574a8a9e7ac3d497ea6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Light
+    second: {fileID: 2100000, guid: 710fef77dfc1b274d826415f1dd4e416, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Light.001
+    second: {fileID: 2100000, guid: e1c9bf6833bf24f41be4cecabfee9ab8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Mirror
+    second: {fileID: 2100000, guid: 210c3696e9fd8864886988a57b455ac9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Mirror.001
+    second: {fileID: 2100000, guid: d97f83afce842f44ca88a3790809fe91, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Wall_1
+    second: {fileID: 2100000, guid: d71fe31bf6d9d8044af390b0b89acab2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Wall_1.001
+    second: {fileID: 2100000, guid: e0ec1cab6961765459ff7690f75f3b89, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Wall_2
+    second: {fileID: 2100000, guid: 80c696b61f349fe4b80677d58547299b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Wall_2.001
+    second: {fileID: 2100000, guid: 10e6881b036415a41977ca6e026a60e6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Wall_Frame
+    second: {fileID: 2100000, guid: 1334163fd5d21904b9224ee9c146116b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_J_Wall_Frame.001
+    second: {fileID: 2100000, guid: 7fca7d264d65680448db3c0a1a88f9e7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_painting
+    second: {fileID: 2100000, guid: 82ff8455a50a7cf4da3683c7511ba119, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_painting.001
+    second: {fileID: 2100000, guid: b8853c5a92f84784091dbf9c2bcbaeb2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mat
+    second: {fileID: 2100000, guid: 74e776f5d6ba422479ab5623a6f5ddf9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mat.001
+    second: {fileID: 2100000, guid: 2ebec09046c943344a0892eb24e59431, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Shadowbox
+    second: {fileID: 2100000, guid: 62bba1e27b33ef34b9ec08c92fa00f04, type: 2}
+  materials:
+    importMaterials: 1
+    materialName: 1
+    materialSearch: 1
+    materialLocation: 0
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    motionNodeName: 
+    rigImportErrors: 
+    rigImportWarnings: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    extraUserProperties: []
+    clipAnimations: []
+    isReadable: 1
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    useSRGBMaterialColor: 1
+    importVisibility: 1
+    importBlendShapes: 1
+    importCameras: 1
+    importLights: 1
+    swapUVChannels: 0
+    generateSecondaryUV: 1
+    useFileUnits: 1
+    optimizeMeshForGPU: 1
+    keepQuads: 0
+    weldVertices: 1
+    preserveHierarchy: 0
+    indexFormat: 0
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+    previousCalculatedGlobalScale: 1
+    hasPreviousCalculatedGlobalScale: 0
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+    normalCalculationMode: 4
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
+  importAnimation: 1
+  copyAvatar: 0
+  humanDescription:
+    serializedVersion: 2
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+    hasExtraRoot: 0
+    skeletonHasParents: 1
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  animationType: 0
+  humanoidOversampling: 1
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
