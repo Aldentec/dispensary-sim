@@ -7,6 +7,7 @@ using Unity.Services.Relay.Models;
 using Unity.Netcode.Transports.UTP;
 using TMPro;
 using DispensarySimulator.Player;
+using DispensarySimulator.Core;
 
 public class RelayManager : MonoBehaviour {
     [Header("UI References")]
@@ -204,6 +205,7 @@ public class RelayManager : MonoBehaviour {
 
     // Update method to handle escape key and auto-hide UI
     void Update() {
+        if (GameManager.Instance != null && GameManager.Instance.isPaused) return;
         // Handle escape key to toggle between menu and game
         if (Input.GetKeyDown(KeyCode.Escape) && playerController != null) {
             if (playerController.IsInUIMode()) {
@@ -234,5 +236,10 @@ public class RelayManager : MonoBehaviour {
         if (Input.GetKeyDown(KeyCode.F1)) {
             DisconnectFromDispensary();
         }
+    }
+
+    public void ShowUIFromPauseMenu() {
+        if (mainMenu != null) mainMenu.SetActive(true);
+        if (playerController != null) playerController.SetMenuMode(true);
     }
 }

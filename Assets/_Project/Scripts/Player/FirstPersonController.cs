@@ -93,8 +93,20 @@ namespace DispensarySimulator.Player {
         }
 
         private void HandleMenuToggle() {
-            // Toggle menu with Escape key
             if (Input.GetKeyDown(menuKey)) {
+                var gm = GameManager.Instance;
+                if (gm != null) {
+                    // Use GameManager for pause/resume functionality
+                    if (!gm.isPaused) {
+                        gm.PauseGame();
+                    }
+                    else {
+                        gm.ResumeGame();
+                    }
+                    return;
+                }
+
+                // Fallback if GameManager is missing - just toggle our own menu
                 ToggleMenu();
             }
         }

@@ -6,6 +6,9 @@ using DispensarySimulator.Customers;
 
 namespace DispensarySimulator.Core {
     public class GameManager : MonoBehaviour {
+        [Header("UI References")]
+        public PauseMenuUI pauseMenuUI;
+
         [Header("Game Settings")]
         public bool debugMode = true;
 
@@ -62,17 +65,16 @@ namespace DispensarySimulator.Core {
         }
 
         private void HandleInput() {
-            // Handle pause/unpause
-            if (Input.GetKeyDown(KeyCode.Escape)) {
-                if (currentState == GameState.Playing) {
-                    PauseGame();
-                }
-                else if (currentState == GameState.Paused) {
-                    ResumeGame();
-                }
+            // Pause with P instead of Escape, and only if not in UI
+            if (Input.GetKeyDown(KeyCode.P)) {
+                var fpc = FindObjectOfType<DispensarySimulator.Player.FirstPersonController>();
+                if (fpc != null && fpc.IsInUIMode()) return;
+
+                if (currentState == GameState.Playing) PauseGame();
+                else if (currentState == GameState.Paused) ResumeGame();
             }
 
-            // Debug reset money (for testing)
+            // Debug add money
             if (debugMode && Input.GetKeyDown(KeyCode.R)) {
                 if (moneyManager != null) {
                     moneyManager.AddMoney(1000f);
@@ -80,6 +82,7 @@ namespace DispensarySimulator.Core {
                 }
             }
         }
+
 
         public void ChangeGameState(GameState newState) {
             if (currentState == newState) return;
@@ -94,17 +97,23 @@ namespace DispensarySimulator.Core {
             OnGameStateChanged?.Invoke(newState);
         }
 
+        private void EnsurePauseUI() {
+            if (pauseMenuUI == null)
+                pauseMenuUI = FindObjectOfType<PauseMenuUI>(true); // includeInactive = true
+        }
+
         public void PauseGame() {
             if (isPaused) return;
 
             isPaused = true;
             Time.timeScale = 0f;
             ChangeGameState(GameState.Paused);
-            OnGamePaused?.Invoke();
 
-            if (debugMode) {
-                Debug.Log("Game Paused");
-            }
+            EnsurePauseUI();
+            if (pauseMenuUI != null) pauseMenuUI.Show();
+
+            OnGamePaused?.Invoke();
+            if (debugMode) Debug.Log("Game Paused");
         }
 
         public void ResumeGame() {
@@ -113,12 +122,14 @@ namespace DispensarySimulator.Core {
             isPaused = false;
             Time.timeScale = gameTimeScale;
             ChangeGameState(GameState.Playing);
-            OnGameResumed?.Invoke();
 
-            if (debugMode) {
-                Debug.Log("Game Resumed");
-            }
+            EnsurePauseUI();
+            if (pauseMenuUI != null) pauseMenuUI.Hide();
+
+            OnGameResumed?.Invoke();
+            if (debugMode) Debug.Log("Game Resumed");
         }
+
 
         public void QuitGame() {
             if (debugMode) {
