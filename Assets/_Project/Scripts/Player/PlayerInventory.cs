@@ -91,7 +91,7 @@ namespace DispensarySimulator.Player {
 
             // Check if already holding something
             if (heldItemNetworkId.Value != 0) {
-                Debug.LogWarning("Player already holding an item!");
+                Debug.LogWarning($"Player already holding an item! NetworkID: {heldItemNetworkId.Value}");
                 return;
             }
 
@@ -179,6 +179,9 @@ namespace DispensarySimulator.Player {
             else {
                 Debug.Log("🎒 No longer holding any item");
             }
+
+            // Update movement speed when holding state changes
+            UpdateMovementSpeed();
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -198,7 +201,7 @@ namespace DispensarySimulator.Player {
             Debug.Log("🎒 Server cleared held item");
         }
 
-        // Simple client-side clearing for immediate feedback
+        // FIXED: Enhanced client-side clearing that also immediately clears server state
         public void ForceClientClearInventory() {
             Debug.Log("🎒 ForceClientClearInventory called");
 
@@ -220,6 +223,24 @@ namespace DispensarySimulator.Player {
             else {
                 Debug.Log("🎒 No item to clear");
             }
+
+            // CRITICAL FIX: Also immediately clear the server-side network variable
+            Debug.Log("🎒 CRITICAL: Also clearing server network variable immediately");
+            ImmediateClearServerInventoryServerRpc();
+        }
+
+        // NEW: Immediate server clearing method with high priority
+        [ServerRpc(RequireOwnership = false)]
+        public void ImmediateClearServerInventoryServerRpc() {
+            if (!IsServer) return;
+
+            ulong previousValue = heldItemNetworkId.Value;
+            Debug.Log($"🎒 IMMEDIATE SERVER CLEAR: Clearing held item ID {previousValue}");
+
+            // IMMEDIATELY clear the network variable
+            heldItemNetworkId.Value = 0;
+
+            Debug.Log($"🎒 IMMEDIATE SUCCESS: NetworkVariable cleared! Old: {previousValue}, New: {heldItemNetworkId.Value}");
         }
 
         // Called directly by server to force clear inventory
@@ -229,26 +250,13 @@ namespace DispensarySimulator.Player {
                 return;
             }
 
-            Debug.Log($"🎒 ForceServerClearInventory called - current held item ID: {heldItemNetworkId.Value}");
+            ulong previousValue = heldItemNetworkId.Value;
+            Debug.Log($"🎒 ForceServerClearInventory called - clearing held item ID: {previousValue}");
 
-            // Store old value for callback
-            ulong oldValue = heldItemNetworkId.Value;
-
-            // Clear the network variable
+            // IMMEDIATELY clear the network variable
             heldItemNetworkId.Value = 0;
-            Debug.Log($"🎒 Changed held item from {oldValue} to 0");
 
-            // Force trigger the callback manually to ensure visual update
-            if (oldValue != 0) {
-                Invoke(nameof(ForceInventoryUpdate), 0.1f); // Small delay to ensure network state is updated
-            }
-        }
-
-        private void ForceInventoryUpdate() {
-            if (heldItem != null && heldItemNetworkId.Value == 0) {
-                Debug.Log("🎒 Manually triggering inventory clear callback");
-                OnHeldItemChanged(999, 0); // Use fake old value
-            }
+            Debug.Log($"🎒 IMMEDIATE: NetworkVariable cleared on server! Old: {previousValue}, New: {heldItemNetworkId.Value}");
         }
 
         private void UpdateMovementSpeed() {
@@ -302,7 +310,9 @@ namespace DispensarySimulator.Player {
 
         // Public methods
         public bool IsHoldingItem() {
-            return heldItemNetworkId.Value != 0;
+            // FIXED: Check local state for immediate feedback instead of network variable
+            // This prevents timing issues when ForceClientClearInventory is called
+            return heldItem != null;
         }
 
         public GameObject GetHeldItem() {

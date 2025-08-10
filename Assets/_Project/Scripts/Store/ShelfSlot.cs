@@ -72,7 +72,7 @@ namespace DispensarySimulator.Store {
             Debug.Log("🎒 About to clear player inventory directly");
             playerInventory.ForceClientClearInventory();
 
-            // Request placement on server
+            // Request placement on server (back to simple version)
             RequestPlaceProductServerRpc(heldProduct.GetComponent<NetworkObject>().NetworkObjectId);
         }
 

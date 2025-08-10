@@ -16,7 +16,7 @@ namespace DispensarySimulator.Store {
         public Material highlightMaterial;
         public GameObject pickupEffect;
 
-        // Network state
+        // Network state - SIMPLIFIED
         private NetworkVariable<bool> isPickedUp = new NetworkVariable<bool>(false);
         private NetworkVariable<ulong> pickedUpByPlayer = new NetworkVariable<ulong>(999);
 
@@ -31,11 +31,31 @@ namespace DispensarySimulator.Store {
         private bool isHighlighted = false;
 
         public override void OnNetworkSpawn() {
+            Debug.Log($"🌐 CLIENT {NetworkManager.Singleton.LocalClientId}: SpawnedProduct OnNetworkSpawn for {gameObject.name}");
+
             InitializeComponents();
 
             // Subscribe to network variable changes
             isPickedUp.OnValueChanged += OnPickupStateChanged;
             pickedUpByPlayer.OnValueChanged += OnPickupPlayerChanged;
+
+            // CRITICAL: Ensure interaction works on all clients
+            SetupForInteraction();
+        }
+
+        private void SetupForInteraction() {
+            Debug.Log($"🔧 CLIENT {NetworkManager.Singleton.LocalClientId}: Setting up {gameObject.name} for interaction");
+
+            // Ensure object is on correct layer (layer 0 = Default)
+            gameObject.layer = 0;
+
+            // Ensure collider is properly configured
+            if (productCollider != null) {
+                productCollider.enabled = true;
+                productCollider.isTrigger = false; // CRITICAL: Must NOT be trigger for raycast detection
+            }
+
+            Debug.Log($"✅ CLIENT {NetworkManager.Singleton.LocalClientId}: {gameObject.name} setup complete - Layer: {gameObject.layer}, Collider: {(productCollider != null ? $"enabled={productCollider.enabled}, trigger={productCollider.isTrigger}" : "null")}");
         }
 
         public void Initialize(ProductData data, ProductSpawnPoint spawn) {
@@ -53,51 +73,45 @@ namespace DispensarySimulator.Store {
                 originalMaterial = productRenderer.material;
             }
 
-            // Ensure we have physics components
+            // Ensure we have required components
             if (productCollider == null) {
-                Debug.LogWarning("SpawnedProduct: Adding missing BoxCollider");
+                Debug.LogWarning($"Adding missing BoxCollider to {gameObject.name}");
                 productCollider = gameObject.AddComponent<BoxCollider>();
-                // Make sure it's NOT a trigger for physics collision
                 productCollider.isTrigger = false;
-            }
-            else {
-                // Ensure existing collider is NOT a trigger
-                if (productCollider.isTrigger) {
-                    Debug.LogWarning($"SpawnedProduct: Converting trigger collider to solid collider for {gameObject.name}");
-                    productCollider.isTrigger = false;
-                }
             }
 
             if (productRigidbody == null) {
-                Debug.LogWarning("SpawnedProduct: Adding missing Rigidbody");
+                Debug.LogWarning($"Adding missing Rigidbody to {gameObject.name}");
                 productRigidbody = gameObject.AddComponent<Rigidbody>();
-                // Configure rigidbody for realistic physics
                 productRigidbody.mass = 1f;
-                productRigidbody.drag = 1f;
-                productRigidbody.angularDrag = 5f;
-                productRigidbody.useGravity = true;
-                productRigidbody.isKinematic = false;
-            }
-            else {
-                // Ensure rigidbody is configured properly
                 productRigidbody.useGravity = true;
                 productRigidbody.isKinematic = false;
             }
 
-            Debug.Log($"✅ SpawnedProduct initialized: Collider.isTrigger={productCollider.isTrigger}, Rigidbody.isKinematic={productRigidbody.isKinematic}");
+            Debug.Log($"✅ Components initialized for {gameObject.name}");
         }
 
         // IInteractable implementation
         public bool CanInteract() {
-            return canBePickedUp && !isPickedUp.Value && productData != null;
+            bool canInteract = canBePickedUp && !isPickedUp.Value && productData != null;
+
+            Debug.Log($"🔍 CLIENT {NetworkManager.Singleton.LocalClientId}: CanInteract check for {gameObject.name}:");
+            Debug.Log($"   canBePickedUp: {canBePickedUp}");
+            Debug.Log($"   isPickedUp: {isPickedUp.Value}");
+            Debug.Log($"   hasProductData: {productData != null}");
+            Debug.Log($"   Result: {canInteract}");
+
+            return canInteract;
         }
 
         public void Interact(PlayerInteraction player) {
-            if (!CanInteract()) return;
+            if (!CanInteract()) {
+                Debug.LogWarning($"Cannot interact with {gameObject.name}");
+                return;
+            }
 
-            Debug.Log($"🤏 Attempting to pick up {productData.productName}");
+            Debug.Log($"🤏 CLIENT {NetworkManager.Singleton.LocalClientId}: Attempting to pick up {productData.productName}");
 
-            // Use the player's inventory system
             var playerInventory = player.GetComponent<PlayerInventory>();
             if (playerInventory != null) {
                 playerInventory.PickupItem(this);
@@ -121,92 +135,94 @@ namespace DispensarySimulator.Store {
                 return;
             }
 
+            Debug.Log($"📦 SERVER: Processing pickup request for {gameObject.name} by player {playerId}");
+
             // Mark as picked up
             isPickedUp.Value = true;
             pickedUpByPlayer.Value = playerId;
 
-            // Add to player's inventory (we'll create this next)
-            // For now, just move to player position
+            // SIMPLIFIED: Just move to player and disable collider
             var playerNetObj = NetworkManager.Singleton.ConnectedClients[playerId].PlayerObject;
             if (playerNetObj != null) {
-                transform.position = playerNetObj.transform.position + Vector3.up * 1.5f;
+                Vector3 newPos = playerNetObj.transform.position + Vector3.up * 1.5f;
+                transform.position = newPos;
                 transform.SetParent(playerNetObj.transform);
 
-                // Disable physics while held
+                // Disable physics and collider while held
                 if (productRigidbody != null) {
                     productRigidbody.isKinematic = true;
                 }
 
-                // Disable collider while held to prevent interference
                 if (productCollider != null) {
                     productCollider.enabled = false;
                 }
+
+                // Notify clients to disable collider
+                UpdateColliderStateClientRpc(false);
             }
 
-            Debug.Log($"📦 {productData.productName} picked up by player {playerId}");
+            Debug.Log($"📦 SERVER: {productData.productName} picked up by player {playerId}");
         }
 
         [ServerRpc(RequireOwnership = false)]
         public void PlaceOnShelfServerRpc(Vector3 position, Quaternion rotation) {
             if (!IsServer) return;
 
-            Debug.Log($"📦 PlaceOnShelfServerRpc called for {gameObject.name}");
-
-            // Get the player who was holding this item (for network variable clearing)
-            ulong previousHolder = pickedUpByPlayer.Value;
+            Debug.Log($"📦 SERVER: PlaceOnShelfServerRpc called for {gameObject.name} at {position}");
 
             // Place the product at the specified location
             transform.position = position;
             transform.rotation = rotation;
-            transform.SetParent(null); // Always set to world space for NetworkObjects
+            transform.SetParent(null);
 
-            // Re-enable physics and restore normal layer
+            // Re-enable physics
             if (productRigidbody != null) {
                 productRigidbody.isKinematic = false;
                 productRigidbody.useGravity = true;
-                Debug.Log($"📦 Restored rigidbody physics for {gameObject.name}");
             }
 
             if (productCollider != null) {
                 productCollider.enabled = true;
-                Debug.Log($"📦 Re-enabled collider for {gameObject.name}");
             }
 
-            // Restore to normal layer
-            gameObject.layer = 0; // Default layer
-            Debug.Log($"📦 Restored layer for {gameObject.name}");
+            gameObject.layer = 0; // Ensure correct layer
+
+            // Notify clients to re-enable collider and correct setup
+            UpdateColliderStateClientRpc(true);
 
             // Mark as no longer picked up
             isPickedUp.Value = false;
             pickedUpByPlayer.Value = 999;
-
-            // Clear the network variable in the player's inventory
-            if (previousHolder != 999 && NetworkManager.Singleton.ConnectedClients.ContainsKey(previousHolder)) {
-                var playerNetObj = NetworkManager.Singleton.ConnectedClients[previousHolder].PlayerObject;
-                if (playerNetObj != null) {
-                    var playerInventory = playerNetObj.GetComponent<PlayerInventory>();
-                    if (playerInventory != null) {
-                        playerInventory.ClearNetworkVariableServerRpc();
-                        Debug.Log($"🎒 Cleared NetworkVariable for player {previousHolder}");
-                    }
-                }
-            }
 
             // Remove from spawn point tracking
             if (spawnPoint != null) {
                 spawnPoint.RemoveProduct(this);
             }
 
-            Debug.Log($"📦 {productData.productName} placement complete - should be visible on shelf now");
+            Debug.Log($"📦 SERVER: {productData.productName} placement complete at {position}");
+        }
+
+        [ClientRpc]
+        private void UpdateColliderStateClientRpc(bool enabled) {
+            Debug.Log($"🔄 CLIENT {NetworkManager.Singleton.LocalClientId}: UpdateColliderStateClientRpc for {gameObject.name} - enabled: {enabled}");
+
+            if (productCollider != null) {
+                productCollider.enabled = enabled;
+                productCollider.isTrigger = false; // Always ensure it's not a trigger
+            }
+
+            // Ensure correct layer
+            gameObject.layer = 0;
+
+            Debug.Log($"🔄 CLIENT {NetworkManager.Singleton.LocalClientId}: Updated {gameObject.name} - Collider enabled: {productCollider?.enabled}, Layer: {gameObject.layer}");
         }
 
         private void OnPickupStateChanged(bool oldValue, bool newValue) {
-            // Update visual state based on pickup status
-            // Collider enabling/disabling is now handled in the ServerRpc methods
+            Debug.Log($"🔄 CLIENT {NetworkManager.Singleton.LocalClientId}: Pickup state changed for {gameObject.name}: {oldValue} → {newValue}");
         }
 
         private void OnPickupPlayerChanged(ulong oldValue, ulong newValue) {
-            // Could be used for visual feedback about who's holding what
+            Debug.Log($"🔄 CLIENT {NetworkManager.Singleton.LocalClientId}: Pickup player changed for {gameObject.name}: {oldValue} → {newValue}");
         }
 
         // Mouse interaction for highlighting
@@ -240,7 +256,6 @@ namespace DispensarySimulator.Store {
         }
 
         void OnDestroy() {
-            // Remove from spawn point if still tracked
             if (spawnPoint != null) {
                 spawnPoint.RemoveProduct(this);
             }
